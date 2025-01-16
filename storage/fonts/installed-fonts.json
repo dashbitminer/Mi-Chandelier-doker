@@ -1,0 +1,14 @@
+{
+    "montserrat', serif": {
+        "300": "\/app\/storage\/fonts\/montserrat___serif_300_32a9cfb5b382577f8cb10e2247b3cacd",
+        "normal": "\/app\/storage\/fonts\/montserrat___serif_normal_2e9fd1f1baa42a2e45e84897165ee3a7",
+        "bold": "\/app\/storage\/fonts\/montserrat___serif_bold_0557d730bc29cba6cdd87bd12bc1cff7",
+        "800": "montserrat___serif_800_27df4c377088b76b6d6ef2cbcc7bac97"
+    },
+    "montserrat": {
+        "300": "\/app\/storage\/fonts\/montserrat_300_32a9cfb5b382577f8cb10e2247b3cacd",
+        "normal": "\/app\/storage\/fonts\/montserrat_normal_2e9fd1f1baa42a2e45e84897165ee3a7",
+        "bold": "\/app\/storage\/fonts\/montserrat_bold_0557d730bc29cba6cdd87bd12bc1cff7",
+        "800": "montserrat_800_27df4c377088b76b6d6ef2cbcc7bac97"
+    }
+}
