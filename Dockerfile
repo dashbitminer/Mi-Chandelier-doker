@@ -59,7 +59,7 @@ RUN yarn install
 
 RUN yarn build
 
-EXPOSE 8000
+EXPOSE 8001
 EXPOSE 5173
 RUN echo "alias pa='php artisan'" >> ~/.bashrc
 
