@@ -47,7 +47,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   redis:
-    # container_name: redis
     image: redis:alpine
     container_name: gw-redis
     ports:
@@ -58,35 +57,3 @@ services:
       test: [ "CMD", "redis-cli", "ping" ]
       retries: 3
       timeout: 5s
-
-
-  # docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token
-  # cloudflared:
-  #   image: cloudflare/cloudflared:latest
-  #   container_name: cloudflared
-  #   command: tunnel --no-autoupdate run
-  #   restart: always
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     TUNNEL_HOSTNAME: chandelier.juantrejo.cloud
-  #     TUNNEL_URL: http://app:8000
-  #     TUNNEL_TOKEN: ${TUNNEL_TOKEN}
-  #     REDSI_URL: redis://redis:6379
-  #     TUNNEL_LOGLEVEL: debug
-  #   depends_on:
-  #     - redis
-    # volumes:
-    #   - ~/.cloudflared:/root/.cloudflared
-
-  # etl:
-  #   <<: *laravel
-  #   container_name: etl
-  #   command: php artisan etl:run
-  #   depends_on:
-  #     - db
-  #     - redis
-  #   volumes:
-  #     - '.:/app:delegated'
-  #     - 'vendor:/app/vendor'
-  #     - 'npm:/app/node_modules'
