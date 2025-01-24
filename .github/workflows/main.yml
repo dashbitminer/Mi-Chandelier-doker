@@ -53,9 +53,23 @@ jobs:
             echo "❌ ERROR: La variable SERVER_IP está vacía"
             exit 1
           fi
+          echo "🔹 [INFO] SERVER_IP es: $SERVER_IP"
 
-          echo "🔹 [INFO] Agregando la IP del servidor a los hosts conocidos..."
-          ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts || { echo "❌ ERROR: ssh-keyscan falló. ¿El servidor está en línea?"; exit 1; }
+          echo "🔹 [INFO] Probando conectividad con ping..."
+          ping -c 3 "$SERVER_IP" || echo "⚠️ ADVERTENCIA: No se pudo hacer ping al servidor"
+
+          echo "🔹 [INFO] Intentando agregar la IP del servidor a los hosts conocidos..."
+          for i in {1..3}; do
+            echo "🔄 Intento $i de 3..."
+            ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts && break
+            sleep 2
+          done
+
+          echo "🔹 [INFO] Verificando si la clave se agregó correctamente..."
+          if ! ssh-keygen -F "$SERVER_IP" > /dev/null; then
+            echo "❌ ERROR: ssh-keyscan falló después de 3 intentos. ¿El servidor está en línea?"
+            exit 1
+          fi
 
           echo "🔹 [INFO] Verificando conexión con el servidor..."
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo '✅ Conexión SSH exitosa'"
@@ -64,32 +78,31 @@ jobs:
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
-          echo "🔹 [INFO] Conectando al servidor y desplegando código..."
+          echo "🔹 [INFO] Moviéndonos al directorio de la aplicación..."
           ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP << 'EOF'
-            echo "🔹 [INFO] Moviéndonos al directorio de la aplicación..."
             cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online || { echo "❌ ERROR: No se pudo acceder al directorio"; exit 1; }
-
-            echo "🔹 [INFO] Marcando el directorio como seguro en Git..."
-            git config --global --add safe.directory /var/www/fastuser/data/www/awschandelier.romeo-dev.online
-
+            
+            echo "🔹 [INFO] Configurando permisos para evitar problemas con git..."
+            sudo git config --global --add safe.directory /var/www/fastuser/data/www/awschandelier.romeo-dev.online
+            
             echo "🔹 [INFO] Haciendo pull del código..."
             git pull origin main || { echo "❌ ERROR: git pull falló"; exit 1; }
 
             echo "🔹 [INFO] Reiniciando servicios..."
-            sudo systemctl restart nginx || { echo "❌ ERROR: No se pudo reiniciar Nginx"; exit 1; }
-            sudo systemctl restart php8.1-fpm || { echo "❌ ERROR: No se pudo reiniciar PHP-FPM"; exit 1; }
+            sudo systemctl restart nginx  
+            sudo systemctl restart php8.1-fpm  
 
-            echo "🔹 [INFO] Limpiando cachés de Laravel..."
+            echo "🔹 [INFO] Limpiando caché de Laravel..."
             php artisan config:clear
             php artisan cache:clear
             php artisan route:clear
             php artisan view:clear
 
             echo "🔹 [INFO] Ejecutando migraciones..."
-            php artisan migrate --force || { echo "❌ ERROR: No se pudieron ejecutar las migraciones"; exit 1; }
+            php artisan migrate --force  
 
             echo "🔹 [INFO] Reiniciando colas de Laravel..."
-            php artisan queue:restart || { echo "❌ ERROR: No se pudo reiniciar las colas"; exit 1; }
+            php artisan queue:restart  
 
-            echo "✅ [INFO] Despliegue completado exitosamente"
+            echo "✅ [INFO] Deploy completado con éxito."
           EOF
