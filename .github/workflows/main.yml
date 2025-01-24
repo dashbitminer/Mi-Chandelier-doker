@@ -1,9 +1,9 @@
-name: Deploy to Server with Tailscale
+name: Deploy to Server via SSH
 
 on:
   push:
     branches:
-      - main  # Se ejecuta cuando hay un push en la rama main
+      - main  # Ejecutar el deploy cuando haya un push en la rama main
 
 jobs:
   deploy:
@@ -11,30 +11,32 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3  # Descarga el código del repositorio
+        uses: actions/checkout@v3
 
-      - name: Download Tailscale
-        run: curl -fsSL https://tailscale.com/install.sh | sh  # Instala Tailscale
-
-      - name: Start Tailscale
-        run: sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}  # Conecta Tailscale con la clave de autenticación
-
-      - name: Add SSH key
+      - name: Configure SSH Key and Connect
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
-          mkdir -p ~/.ssh  # Crea la carpeta SSH si no existe
-          # 2
-          # Solución: Convierte correctamente los saltos de línea en la clave SSH
-          echo "$PRIVATE_KEY" | awk '{gsub(/\\n/,"\n")}1' > ~/.ssh/id_rsa
-          # 3
-          chmod 600 ~/.ssh/id_rsa  # Asegura los permisos correctos de la clave
-          # 4
-          eval "$(ssh-agent -s)"  # Inicia el agente SSH
-          ssh-add ~/.ssh/id_rsa  # Agrega la clave privada al agente
+          mkdir -p ~/.ssh  # Crea el directorio SSH si no existe
 
-          # Agrega la IP del servidor a la lista de hosts conocidos para evitar el prompt de confirmación
+          # 🔥 Debug: Verificar si la clave se inyecta correctamente
+          echo "DEBUG: Creando archivo de clave privada..."
+
+          # 🛠 Asegura que la clave tenga saltos de línea correctos
+          echo "$PRIVATE_KEY" | awk '{gsub(/\\n/,"\n")}1' > ~/.ssh/id_rsa
+          
+          chmod 600 ~/.ssh/id_rsa  # Permisos correctos
+          
+          # 🔥 Debug: Verificar formato de la clave
+          echo "DEBUG: Contenido de la clave privada (primeras líneas):"
+          head -n 5 ~/.ssh/id_rsa
+
+          # Iniciar agente SSH y añadir clave
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa || { echo "❌ ERROR: No se pudo agregar la clave SSH"; exit 1; }
+
+          # Agregar la IP del servidor a los hosts conocidos
           ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
 
       - name: Deploy code to server
@@ -42,15 +44,14 @@ jobs:
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP << 'EOF'
-            cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online
-            git pull origin main
-            sudo systemctl restart nginx
-            sudo systemctl restart apache2
+            cd /var/www/html  # Ajusta el directorio según tu estructura
+            git pull origin main  # Actualiza el código en el servidor
+            sudo systemctl restart nginx  # Reinicia el servidor web
+            sudo systemctl restart php8.1-fpm  # Reinicia PHP-FPM si usas PHP
             php artisan config:clear
             php artisan cache:clear
             php artisan route:clear
             php artisan view:clear
-            php artisan config:cache
-            php artisan route:cache
-            php artisan queue:restart
+            php artisan migrate --force  # Ejecuta migraciones si es necesario
+            php artisan queue:restart  # Reinicia las colas de Laravel
           EOF
