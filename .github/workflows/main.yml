@@ -8,7 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-22.04
-  
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -24,46 +24,64 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
-          # Crear el directorio SSH
+          echo "🔹 [INFO] Creando directorio SSH..."
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
-          # Guardar la clave asegurando que los saltos de línea sean correctos
+          echo "🔹 [INFO] Guardando la clave privada..."
           echo "$PRIVATE_KEY" | sed 's/\\n/\n/g' > ~/.ssh/id_rsa
+
+          echo "🔹 [INFO] Ajustando permisos de la clave..."
           chmod 600 ~/.ssh/id_rsa
 
-          # Verificar que la clave privada es válida
+          echo "🔹 [INFO] Verificando que la clave privada es válida..."
           if ! ssh-keygen -y -f ~/.ssh/id_rsa &>/dev/null; then
             echo "❌ ERROR: La clave privada es inválida o está dañada"
             exit 1
           fi
 
-          # Detener cualquier agente SSH previo
+          echo "🔹 [INFO] Deteniendo cualquier agente SSH previo..."
           pkill ssh-agent || true
 
-          # Iniciar nuevo agente SSH y agregar clave
+          echo "🔹 [INFO] Iniciando nuevo agente SSH..."
           eval "$(ssh-agent -s)"
+
+          echo "🔹 [INFO] Agregando la clave privada al agente SSH..."
           ssh-add ~/.ssh/id_rsa || { echo "❌ ERROR: No se pudo agregar la clave SSH"; exit 1; }
 
-          # Agregar la IP del servidor a los hosts conocidos
+          echo "🔹 [INFO] Agregando la IP del servidor a los hosts conocidos..."
           ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
 
-          # Verificar conexión SSH
+          echo "🔹 [INFO] Probando conexión SSH..."
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo '✅ Conexión SSH exitosa'"
 
       - name: Deploy code to server
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
+          echo "🔹 [INFO] Conectando al servidor para hacer el deploy..."
           ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP << 'EOF'
-            cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online  
-            git pull origin main
-            sudo systemctl restart nginx
-            sudo systemctl restart php8.1-fpm
+            echo "🔹 [INFO] Accediendo al directorio del proyecto..."
+            cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online || { echo "❌ ERROR: No se pudo acceder al directorio"; exit 1; }
+
+            echo "🔹 [INFO] Haciendo pull del código..."
+            git pull origin main || { echo "❌ ERROR: Git pull falló"; exit 1; }
+
+            echo "🔹 [INFO] Reiniciando servicios..."
+            sudo systemctl restart nginx || { echo "❌ ERROR: No se pudo reiniciar Nginx"; exit 1; }
+            sudo systemctl restart php8.1-fpm || { echo "❌ ERROR: No se pudo reiniciar PHP-FPM"; exit 1; }
+
+            echo "🔹 [INFO] Limpiando cachés de Laravel..."
             php artisan config:clear
             php artisan cache:clear
             php artisan route:clear
             php artisan view:clear
-            php artisan migrate --force
-            php artisan queue:restart
+
+            echo "🔹 [INFO] Aplicando migraciones..."
+            php artisan migrate --force || { echo "❌ ERROR: Migraciones fallaron"; exit 1; }
+
+            echo "🔹 [INFO] Reiniciando colas de Laravel..."
+            php artisan queue:restart || { echo "❌ ERROR: No se pudo reiniciar las colas"; exit 1; }
+
+            echo "✅ [ÉXITO] Deploy completado correctamente!"
           EOF
