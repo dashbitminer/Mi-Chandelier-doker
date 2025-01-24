@@ -19,45 +19,65 @@ jobs:
       - name: Start Tailscale
         run: sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
 
-
       - name: Configure SSH Key and Connect
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           mkdir -p ~/.ssh  # Crea el directorio SSH si no existe
+          
           # Depuración: Verificar tamaño del secreto
           echo "DEBUG: Tamaño de la clave privada: $(echo -n "$PRIVATE_KEY" | wc -c) caracteres"
+
           # Guardar la clave asegurando que los saltos de línea no se corrompan
-          echo "$PRIVATE_KEY" | awk 'BEGIN{RS="\\n";ORS="\n"}{print}' > ~/.ssh/id_rsa
+          echo "$PRIVATE_KEY" | sed 's/\\n/\n/g' > ~/.ssh/id_rsa
+
           # Verificar formato correcto
           if ! grep -q "PRIVATE KEY" ~/.ssh/id_rsa; then
             echo "ERROR: La clave privada no tiene el formato correcto"
             exit 1
           fi
+          
           chmod 600 ~/.ssh/id_rsa  # Permisos correctos
-          # Mostrar primeras líneas de la clave (sin exponerla)
+
+          # Mostrar primeras líneas de la clave (sin exponerla completamente)
+          echo "DEBUG: Primeras 5 líneas de la clave privada"
           head -n 5 ~/.ssh/id_rsa
+
           # Iniciar agente SSH y añadir clave
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_rsa || { echo "ERROR: No se pudo agregar la clave SSH"; exit 1; }
+
           # Agregar la IP del servidor a los hosts conocidos
           ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
-          # Verificar conexión
+
+          # Verificar conexión SSH
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo 'Conexión SSH exitosa'"
+
       - name: Deploy code to server
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP << 'EOF'
-            cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online  # Ajusta el directorio según tu estructura
-            git pull origin main  # Actualiza el código en el servidor
-            sudo systemctl restart nginx  # Reinicia el servidor web
-            sudo systemctl restart php8.1-fpm  # Reinicia PHP-FPM si usas PHP
+            # Ajusta el directorio según tu estructura
+            cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online  
+            
+            # Actualiza el código en el servidor
+            git pull origin main
+
+            # Reinicia los servicios necesarios
+            sudo systemctl restart nginx
+            sudo systemctl restart php8.1-fpm
+
+            # Limpia las cachés y configuraciones de Laravel
             php artisan config:clear
             php artisan cache:clear
             php artisan route:clear
             php artisan view:clear
-            php artisan migrate --force  # Ejecuta migraciones si es necesario
-            php artisan queue:restart  # Reinicia las colas de Laravel
+
+            # Ejecuta migraciones si es necesario
+            php artisan migrate --force
+
+            # Reinicia las colas de Laravel
+            php artisan queue:restart
           EOF
