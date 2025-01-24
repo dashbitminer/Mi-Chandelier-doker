@@ -27,32 +27,30 @@ jobs:
 
       - name: Start Tailscale
         run: sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
-  
-    
-    - name: Add SSH key
-      env:
-        PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        echo "$PRIVATE_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H <TAILSCALE_IP> >> ~/.ssh/known_hosts
 
-    - name: Deploy code to server
-      run: |
-        ssh ubuntu@<TAILSCALE_IP> << 'EOF'
-          cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online
-          git pull origin main
-          # Abajo editar todos los servicios a reestablecer
-          sudo systemctl restart nginx
-          sudo systemctl restart apache2
-          php artisan config:clear
-          php artisan cache:clear
-          php artisan route:clear
-          php artisan view:clear
-          php artisan config:cache
-          php artisan route:cache
-          php artisan queue:restart
+      - name: Add SSH key
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H <TAILSCALE_IP> >> ~/.ssh/known_hosts
 
+      - name: Deploy code to server
+        run: |
+          ssh ubuntu@<TAILSCALE_IP> << 'EOF'
+            cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online
+            git pull origin main
+            # Abajo editar todos los servicios a reestablecer
+            sudo systemctl restart nginx
+            sudo systemctl restart apache2
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan route:clear
+            php artisan view:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan queue:restart
+          EOF
 
-        EOF
