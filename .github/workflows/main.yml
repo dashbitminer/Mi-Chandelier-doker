@@ -22,10 +22,10 @@ jobs:
       - name: Add SSH key
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-          SERVER_IP: ${{ secrets.SERVER_IP }}  # Agregue la IP del servidor en los secrets
+          SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           mkdir -p ~/.ssh
-          echo "$PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+          echo -e "$PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_rsa
