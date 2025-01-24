@@ -20,24 +20,32 @@ jobs:
         run: |
           mkdir -p ~/.ssh  # Crea el directorio SSH si no existe
 
-          # 🔥 Debug: Verificar si la clave se inyecta correctamente
-          echo "DEBUG: Creando archivo de clave privada..."
+          # Depuración: Verificar tamaño del secreto
+          echo "DEBUG: Tamaño de la clave privada: $(echo -n "$PRIVATE_KEY" | wc -c) caracteres"
 
-          # 🛠 Asegura que la clave tenga saltos de línea correctos
-          echo "$PRIVATE_KEY" | awk '{gsub(/\\n/,"\n")}1' > ~/.ssh/id_rsa
-          
+          # Guardar la clave asegurando que los saltos de línea no se corrompan
+          echo "$PRIVATE_KEY" | awk 'BEGIN{RS="\\n";ORS="\n"}{print}' > ~/.ssh/id_rsa
+
+          # Verificar formato correcto
+          if ! grep -q "PRIVATE KEY" ~/.ssh/id_rsa; then
+            echo "ERROR: La clave privada no tiene el formato correcto"
+            exit 1
+          fi
+
           chmod 600 ~/.ssh/id_rsa  # Permisos correctos
-          
-          # 🔥 Debug: Verificar formato de la clave
-          echo "DEBUG: Contenido de la clave privada (primeras líneas):"
+
+          # Mostrar primeras líneas de la clave (sin exponerla)
           head -n 5 ~/.ssh/id_rsa
 
           # Iniciar agente SSH y añadir clave
           eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/id_rsa || { echo "❌ ERROR: No se pudo agregar la clave SSH"; exit 1; }
+          ssh-add ~/.ssh/id_rsa || { echo "ERROR: No se pudo agregar la clave SSH"; exit 1; }
 
           # Agregar la IP del servidor a los hosts conocidos
           ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
+
+          # Verificar conexión
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo 'Conexión SSH exitosa'"
 
       - name: Deploy code to server
         env:
