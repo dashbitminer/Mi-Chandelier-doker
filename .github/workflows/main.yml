@@ -3,40 +3,55 @@ name: Deploy to Server via SSH
 on:
   push:
     branches:
-      - main
+      - main  # Ejecutar el deploy cuando haya un push en la rama main
 
 jobs:
   deploy:
     runs-on: ubuntu-22.04
-
+  
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Download Tailscale
-        run: curl -fsSL https://tailscale.com/install.sh | sh
+        run: |
+          echo "🔹 [INFO] Instalando Tailscale..."
+          curl -fsSL https://tailscale.com/install.sh | sh
 
       - name: Start Tailscale
-        run: sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: |
+          echo "🔹 [INFO] Iniciando Tailscale..."
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
 
       - name: Configure SSH Key and Connect
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
+          echo "🔹 [INFO] Verificando dirección del servidor..."
+          if [[ -z "$SERVER_IP" ]]; then
+            echo "❌ ERROR: SERVER_IP está vacío"
+            exit 1
+          fi
+
+          echo "🔹 [INFO] Probando conexión con el servidor..."
+          ping -c 3 "$SERVER_IP" || { echo "❌ ERROR: No se puede alcanzar $SERVER_IP"; exit 1; }
+
+          echo "🔹 [INFO] Verificando estado de Tailscale..."
+          sudo tailscale status || { echo "❌ ERROR: Tailscale no está funcionando"; exit 1; }
+
           echo "🔹 [INFO] Creando directorio SSH..."
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          mkdir -p ~/.ssh  
 
           echo "🔹 [INFO] Guardando la clave privada..."
-          echo "$PRIVATE_KEY" | sed 's/\\n/\n/g' > ~/.ssh/id_rsa
+          echo "$PRIVATE_KEY" | awk 'BEGIN{RS="\\n";ORS="\n"}{print}' > ~/.ssh/id_rsa
 
           echo "🔹 [INFO] Ajustando permisos de la clave..."
-          chmod 600 ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa  
 
           echo "🔹 [INFO] Verificando que la clave privada es válida..."
-          if ! ssh-keygen -y -f ~/.ssh/id_rsa &>/dev/null; then
-            echo "❌ ERROR: La clave privada es inválida o está dañada"
+          if ! grep -q "PRIVATE KEY" ~/.ssh/id_rsa; then
+            echo "❌ ERROR: La clave privada no tiene el formato correcto"
             exit 1
           fi
 
@@ -50,22 +65,22 @@ jobs:
           ssh-add ~/.ssh/id_rsa || { echo "❌ ERROR: No se pudo agregar la clave SSH"; exit 1; }
 
           echo "🔹 [INFO] Agregando la IP del servidor a los hosts conocidos..."
-          ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts || { echo "❌ ERROR: ssh-keyscan falló"; exit 1; }
 
-          echo "🔹 [INFO] Probando conexión SSH..."
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo '✅ Conexión SSH exitosa'"
+          echo "🔹 [INFO] Verificando conexión SSH..."
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo '✅ Conexión SSH exitosa'" || { echo "❌ ERROR: No se pudo conectar al servidor"; exit 1; }
 
       - name: Deploy code to server
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
-          echo "🔹 [INFO] Conectando al servidor para hacer el deploy..."
+          echo "🔹 [INFO] Conectando al servidor y desplegando código..."
           ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP << 'EOF'
-            echo "🔹 [INFO] Accediendo al directorio del proyecto..."
+            echo "🔹 [INFO] Moviéndonos al directorio de la aplicación..."
             cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online || { echo "❌ ERROR: No se pudo acceder al directorio"; exit 1; }
 
             echo "🔹 [INFO] Haciendo pull del código..."
-            git pull origin main || { echo "❌ ERROR: Git pull falló"; exit 1; }
+            git pull origin main || { echo "❌ ERROR: git pull falló"; exit 1; }
 
             echo "🔹 [INFO] Reiniciando servicios..."
             sudo systemctl restart nginx || { echo "❌ ERROR: No se pudo reiniciar Nginx"; exit 1; }
@@ -77,11 +92,11 @@ jobs:
             php artisan route:clear
             php artisan view:clear
 
-            echo "🔹 [INFO] Aplicando migraciones..."
-            php artisan migrate --force || { echo "❌ ERROR: Migraciones fallaron"; exit 1; }
+            echo "🔹 [INFO] Ejecutando migraciones..."
+            php artisan migrate --force || { echo "❌ ERROR: No se pudieron ejecutar las migraciones"; exit 1; }
 
             echo "🔹 [INFO] Reiniciando colas de Laravel..."
             php artisan queue:restart || { echo "❌ ERROR: No se pudo reiniciar las colas"; exit 1; }
 
-            echo "✅ [ÉXITO] Deploy completado correctamente!"
+            echo "✅ [INFO] Despliegue completado exitosamente"
           EOF
