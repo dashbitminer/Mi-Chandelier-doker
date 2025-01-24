@@ -25,12 +25,12 @@ jobs:
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           mkdir -p ~/.ssh  # Crea la carpeta SSH si no existe
-          
+          # 2
           # Solución: Convierte correctamente los saltos de línea en la clave SSH
           echo "$PRIVATE_KEY" | awk '{gsub(/\\n/,"\n")}1' > ~/.ssh/id_rsa
-          
+          # 3
           chmod 600 ~/.ssh/id_rsa  # Asegura los permisos correctos de la clave
-          
+          # 4
           eval "$(ssh-agent -s)"  # Inicia el agente SSH
           ssh-add ~/.ssh/id_rsa  # Agrega la clave privada al agente
 
