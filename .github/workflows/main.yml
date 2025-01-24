@@ -13,17 +13,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Fix Tailscale Repository
-        run: |
-          sudo rm /etc/apt/sources.list.d/tailscale.list || true
-          sudo rm /usr/share/keyrings/tailscale-archive-keyring.gpg || true
-          sudo apt update
-          curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/tailscale-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/tailscale.list
-          sudo apt update
-
-      - name: Install Tailscale
-        run: sudo apt install tailscale -y
+      - name: Download Tailscale
+        run: curl -fsSL https://tailscale.com/install.sh | sh
 
       - name: Start Tailscale
         run: sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
