@@ -59,7 +59,7 @@ jobs:
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP << 'EOF'
-            cd /var/www/html  # Ajusta el directorio según tu estructura
+            cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online  # Ajusta el directorio según tu estructura
             git pull origin main  # Actualiza el código en el servidor
             sudo systemctl restart nginx  # Reinicia el servidor web
             sudo systemctl restart php8.1-fpm  # Reinicia PHP-FPM si usas PHP
