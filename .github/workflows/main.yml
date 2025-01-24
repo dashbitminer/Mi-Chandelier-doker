@@ -3,7 +3,7 @@ name: Deploy to Server with Tailscale
 on:
   push:
     branches:
-      - main  # Despliega cuando se haga push a la rama main
+      - main  # Se ejecuta cuando hay un push en la rama main
 
 jobs:
   deploy:
@@ -11,24 +11,30 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3  # Descarga el código del repositorio
 
       - name: Download Tailscale
-        run: curl -fsSL https://tailscale.com/install.sh | sh
+        run: curl -fsSL https://tailscale.com/install.sh | sh  # Instala Tailscale
 
       - name: Start Tailscale
-        run: sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}  # Conecta Tailscale con la clave de autenticación
 
       - name: Add SSH key
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
-          mkdir -p ~/.ssh
-          echo -e "$PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/id_rsa
+          mkdir -p ~/.ssh  # Crea la carpeta SSH si no existe
+          
+          # Solución: Convierte correctamente los saltos de línea en la clave SSH
+          echo "$PRIVATE_KEY" | awk '{gsub(/\\n/,"\n")}1' > ~/.ssh/id_rsa
+          
+          chmod 600 ~/.ssh/id_rsa  # Asegura los permisos correctos de la clave
+          
+          eval "$(ssh-agent -s)"  # Inicia el agente SSH
+          ssh-add ~/.ssh/id_rsa  # Agrega la clave privada al agente
+
+          # Agrega la IP del servidor a la lista de hosts conocidos para evitar el prompt de confirmación
           ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
 
       - name: Deploy code to server
