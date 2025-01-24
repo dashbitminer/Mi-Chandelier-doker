@@ -22,20 +22,22 @@ jobs:
       - name: Add SSH key
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}  # Agregue la IP del servidor en los secrets
         run: |
           mkdir -p ~/.ssh
-          # Limpiar la clave y eliminar posibles caracteres de salto de línea o retorno de carro (\r)
           echo "$PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          # Usamos 'tee' para redirigir la salida correctamente al archivo known_hosts
-          ssh-keyscan -H <TAILSCALE_IP> | tee -a ~/.ssh/known_hosts > /dev/null
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
+          ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
 
       - name: Deploy code to server
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
-          ssh ubuntu@<TAILSCALE_IP> << 'EOF'
+          ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP << 'EOF'
             cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online
             git pull origin main
-            # Abajo editar todos los servicios a reestablecer
             sudo systemctl restart nginx
             sudo systemctl restart apache2
             php artisan config:clear
