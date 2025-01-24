@@ -26,6 +26,8 @@ jobs:
           mkdir -p ~/.ssh
           echo "$PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          # Crear archivo known_hosts si no existe y agregar la clave con ssh-keyscan
+          touch ~/.ssh/known_hosts
           ssh-keyscan -H <TAILSCALE_IP> >> ~/.ssh/known_hosts
 
       - name: Deploy code to server
