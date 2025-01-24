@@ -3,7 +3,7 @@ name: Deploy to Server via SSH
 on:
   push:
     branches:
-      - main  # Ejecutar el deploy cuando haya un push en la rama main
+      - main
 
 jobs:
   deploy:
@@ -24,60 +24,46 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
-          mkdir -p ~/.ssh  # Crea el directorio SSH si no existe
-          
-          # Depuración: Verificar tamaño del secreto
-          echo "DEBUG: Tamaño de la clave privada: $(echo -n "$PRIVATE_KEY" | wc -c) caracteres"
+          # Crear el directorio SSH
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
 
-          # Guardar la clave asegurando que los saltos de línea no se corrompan
+          # Guardar la clave asegurando que los saltos de línea sean correctos
           echo "$PRIVATE_KEY" | sed 's/\\n/\n/g' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-          # Verificar formato correcto
-          if ! grep -q "PRIVATE KEY" ~/.ssh/id_rsa; then
-            echo "ERROR: La clave privada no tiene el formato correcto"
+          # Verificar que la clave privada es válida
+          if ! ssh-keygen -y -f ~/.ssh/id_rsa &>/dev/null; then
+            echo "❌ ERROR: La clave privada es inválida o está dañada"
             exit 1
           fi
-          
-          chmod 600 ~/.ssh/id_rsa  # Permisos correctos
 
-          # Mostrar primeras líneas de la clave (sin exponerla completamente)
-          echo "DEBUG: Primeras 5 líneas de la clave privada"
-          head -n 5 ~/.ssh/id_rsa
+          # Detener cualquier agente SSH previo
+          pkill ssh-agent || true
 
-          # Iniciar agente SSH y añadir clave
+          # Iniciar nuevo agente SSH y agregar clave
           eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/id_rsa || { echo "ERROR: No se pudo agregar la clave SSH"; exit 1; }
+          ssh-add ~/.ssh/id_rsa || { echo "❌ ERROR: No se pudo agregar la clave SSH"; exit 1; }
 
           # Agregar la IP del servidor a los hosts conocidos
           ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
 
           # Verificar conexión SSH
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo 'Conexión SSH exitosa'"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo '✅ Conexión SSH exitosa'"
 
       - name: Deploy code to server
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP << 'EOF'
-            # Ajusta el directorio según tu estructura
             cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online  
-            
-            # Actualiza el código en el servidor
             git pull origin main
-
-            # Reinicia los servicios necesarios
             sudo systemctl restart nginx
             sudo systemctl restart php8.1-fpm
-
-            # Limpia las cachés y configuraciones de Laravel
             php artisan config:clear
             php artisan cache:clear
             php artisan route:clear
             php artisan view:clear
-
-            # Ejecuta migraciones si es necesario
             php artisan migrate --force
-
-            # Reinicia las colas de Laravel
             php artisan queue:restart
           EOF
