@@ -31,7 +31,7 @@ jobs:
           echo "DEBUG: Tamaño de la clave privada: $(echo -n "$PRIVATE_KEY" | wc -c) caracteres"
 
           # Guardar la clave asegurando que los saltos de línea no se corrompan
-          # echo "$PRIVATE_KEY" | awk 'BEGIN{RS="\\n";ORS="\n"}{print}' > ~/.ssh/id_rsa
+          echo "$PRIVATE_KEY" | awk 'BEGIN{RS="\\n";ORS="\n"}{print}' > ~/.ssh/id_rsa
 
           # Verificar formato correcto
           if ! grep -q "PRIVATE KEY" ~/.ssh/id_rsa; then
