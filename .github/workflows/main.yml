@@ -48,8 +48,14 @@ jobs:
           echo "🔹 [INFO] Agregando la clave privada al agente SSH..."
           ssh-add ~/.ssh/id_rsa || { echo "❌ ERROR: No se pudo agregar la clave SSH"; exit 1; }
 
+          echo "🔹 [INFO] Verificando que SERVER_IP no está vacío..."
+          if [ -z "$SERVER_IP" ]; then
+            echo "❌ ERROR: La variable SERVER_IP está vacía"
+            exit 1
+          fi
+
           echo "🔹 [INFO] Agregando la IP del servidor a los hosts conocidos..."
-          ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts || { echo "❌ ERROR: ssh-keyscan falló. ¿El servidor está en línea?"; exit 1; }
 
           echo "🔹 [INFO] Verificando conexión con el servidor..."
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo '✅ Conexión SSH exitosa'"
