@@ -10,17 +10,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-    - name: Set up Tailscale
-      run: |
-        sudo apt update
-        curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/gpg.key | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg > /dev/null
-        echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/tailscale.list > /dev/null
-        sudo apt update
-        sudo apt install tailscale -y
-        sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
+      - name: Fix Tailscale Repository
+        run: |
+          sudo rm /etc/apt/sources.list.d/tailscale.list || true
+          sudo rm /usr/share/keyrings/tailscale-archive-keyring.gpg || true
+          sudo apt update
+          curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/tailscale.list
+          sudo apt update
+
+      - name: Install Tailscale
+        run: sudo apt install tailscale -y
+
+      - name: Start Tailscale
+        run: sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
+  
     
     - name: Add SSH key
       env:
