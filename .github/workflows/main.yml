@@ -21,7 +21,7 @@ jobs:
 
       - name: Configure SSH Key and Connect
         env:
-          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY2 }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           echo "🔹 [INFO] Creando directorio SSH..."
