@@ -80,10 +80,10 @@ jobs:
         run: |
           echo "🔹 [INFO] Moviéndonos al directorio de la aplicación..."
           ssh -o StrictHostKeyChecking=no root@$SERVER_IP << 'EOF'
-            cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online || { echo "❌ ERROR: No se pudo acceder al directorio"; exit 1; }
+            cd /var/www/fastuser/data/www/chandelier.romeo-dev.online || { echo "❌ ERROR: No se pudo acceder al directorio"; exit 1; }
             
             echo "🔹 [INFO] Configurando permisos para evitar problemas con git..."
-            sudo git config --global --add safe.directory /var/www/fastuser/data/www/awschandelier.romeo-dev.online
+            sudo git config --global --add safe.directory /var/www/fastuser/data/www/chandelier.romeo-dev.online
             
             echo "🔹 [INFO] Haciendo pull del código..."
             git pull origin main || { echo "❌ ERROR: git pull falló"; exit 1; }
