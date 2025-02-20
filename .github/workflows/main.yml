@@ -72,14 +72,14 @@ jobs:
           fi
 
           echo "🔹 [INFO] Verificando conexión con el servidor..."
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "echo '✅ Conexión SSH exitosa'"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@$SERVER_IP "echo '✅ Conexión SSH exitosa'"
 
       - name: Deploy code to server
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           echo "🔹 [INFO] Moviéndonos al directorio de la aplicación..."
-          ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP << 'EOF'
+          ssh -o StrictHostKeyChecking=no root@$SERVER_IP << 'EOF'
             cd /var/www/fastuser/data/www/awschandelier.romeo-dev.online || { echo "❌ ERROR: No se pudo acceder al directorio"; exit 1; }
             
             echo "🔹 [INFO] Configurando permisos para evitar problemas con git..."
